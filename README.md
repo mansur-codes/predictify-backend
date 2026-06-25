@@ -24,6 +24,16 @@ npm run db:migrate
 npm run dev
 ```
 
+## Configuration
+
+Environment variables are validated at startup via a [zod](https://zod.dev) schema in `src/config/env.ts`.
+The service **will refuse to boot** if required values are missing or invalid.
+
+**Important constraint:** `JWT_TTL_SECONDS` must be >= `WORKER_HEARTBEAT_SECONDS * 2`.
+This prevents mid-flight worker requests from failing with `TokenExpired` when the JWT
+lifetime is shorter than two worker heartbeat cycles. A startup warning is also logged
+when the TTL is within 10% of that minimum bound.
+
 ## Layout
 
 ```
