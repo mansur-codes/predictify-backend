@@ -10,6 +10,7 @@ export const markets = pgTable("markets", {
   id: text("id").primaryKey(),
   question: text("question").notNull(),
   status: text("status").notNull(),
+  resolutionOutcome: text("resolution_outcome"),
   resolutionTime: timestamp("resolution_time", { withTimezone: true }).notNull(),
   metadata: jsonb("metadata"),
   indexedLedger: integer("indexed_ledger").notNull(),
