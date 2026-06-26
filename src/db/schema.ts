@@ -10,6 +10,7 @@ export const markets = pgTable("markets", {
   id: text("id").primaryKey(),
   question: text("question").notNull(),
   status: text("status").notNull(),
+  resolutionOutcome: text("resolution_outcome"),
   resolutionTime: timestamp("resolution_time", { withTimezone: true }).notNull(),
   metadata: jsonb("metadata"),
   indexedLedger: integer("indexed_ledger").notNull(),
@@ -35,13 +36,13 @@ export const indexerCursor = pgTable("indexer_cursor", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const authChallenges = pgTable("auth_challenges", {
-  nonce: text("nonce").primaryKey(),
-  stellarAddress: text("stellar_address").notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  used: boolean("used").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+export const reconciliationReports = pgTable("reconciliation_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  totalPredictions: integer("total_predictions").notNull(),
+  matchedPredictions: integer("matched_predictions").notNull(),
+  unmatchedPredictions: integer("unmatched_predictions").notNull(),
+  discrepancies: jsonb("discrepancies").notNull(),
+  status: text("status").notNull(),
 });
-
-export type AuthChallenge = typeof authChallenges.$inferSelect;
-export type NewAuthChallenge = typeof authChallenges.$inferInsert;

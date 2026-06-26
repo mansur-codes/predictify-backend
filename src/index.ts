@@ -6,31 +6,10 @@ import { env } from "./config/env";
 import { logger } from "./config/logger";
 import { healthRouter } from "./routes/health";
 import { marketsRouter } from "./routes/markets";
-import { predictionsRouter } from "./routes/predictions";
+import { leaderboardRouter } from "./routes/leaderboard";
+import { reconciliationRouter } from "./routes/reconciliation";
 import { errorHandler } from "./middleware/errorHandler";
-import { requestContextStorage } from "./lib/requestContext";
-import { REQUEST_ID_HEADER } from "./lib/http";
-
-/**
- * Maximum byte-length we accept for an inbound X-Request-Id.
- * Values longer than this are truncated before use to prevent log injection.
- */
-const REQUEST_ID_MAX_LENGTH = 64;
-
-/**
- * Sanitise an inbound request-id:
- *  - Truncate to REQUEST_ID_MAX_LENGTH characters.
- *  - Strip anything outside [A-Za-z0-9\-_.] (printable, URL-safe).
- *
- * Returns undefined (falsy) when the sanitised result is empty so that the
- * caller can fall back to a generated UUID.
- */
-function sanitizeRequestId(raw: string): string | undefined {
-  const sanitised = raw
-    .slice(0, REQUEST_ID_MAX_LENGTH)
-    .replace(/[^A-Za-z0-9\-_.]/g, "");
-  return sanitised.length > 0 ? sanitised : undefined;
-}
+import { initializeScheduler, stopScheduler } from "./services/scheduler";
 
 export function createApp(): express.Express {
   const app = express();
@@ -82,7 +61,8 @@ export function createApp(): express.Express {
 
   app.use("/health", healthRouter);
   app.use("/api/markets", marketsRouter);
-  app.use("/api/predictions", predictionsRouter);
+  app.use("/api/leaderboard", leaderboardRouter);
+  app.use("/api/reconciliation", reconciliationRouter);
 
   app.use(errorHandler);
   return app;
@@ -90,7 +70,24 @@ export function createApp(): express.Express {
 
 if (require.main === module) {
   const app = createApp();
+  
+  // Initialize scheduled tasks
+  initializeScheduler();
+  
   app.listen(env.PORT, () => {
     logger.info({ port: env.PORT, env: env.NODE_ENV }, "predictify-backend listening");
+  });
+  
+  // Graceful shutdown
+  process.on("SIGTERM", () => {
+    logger.info("SIGTERM received, shutting down gracefully");
+    stopScheduler();
+    process.exit(0);
+  });
+  
+  process.on("SIGINT", () => {
+    logger.info("SIGINT received, shutting down gracefully");
+    stopScheduler();
+    process.exit(0);
   });
 }
