@@ -26,15 +26,17 @@ npm run db:migrate
 npm run dev
 ```
 
-## Configuration
+`DATABASE_URL` is required in development and production. The markets API reads from
+Postgres with Drizzle and returns active, non-archived rows from the `markets` table.
 
-Environment variables are validated at startup via a [zod](https://zod.dev) schema in `src/config/env.ts`.
-The service **will refuse to boot** if required values are missing or invalid.
+## Markets API
 
-**Important constraint:** `JWT_TTL_SECONDS` must be >= `WORKER_HEARTBEAT_SECONDS * 2`.
-This prevents mid-flight worker requests from failing with `TokenExpired` when the JWT
-lifetime is shorter than two worker heartbeat cycles. A startup warning is also logged
-when the TTL is within 10% of that minimum bound.
+```http
+GET /api/markets?limit=50&offset=0
+```
+
+`limit` is optional and capped at 100; `offset` defaults to 0. Responses contain
+ISO-8601 `resolutionTime` values.
 
 ## Layout
 

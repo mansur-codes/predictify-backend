@@ -1,30 +1,43 @@
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
 import { env } from "../config/env";
 import * as schema from "./schema";
 
-/**
- * Shared Postgres pool + drizzle client.
- *
- * The starter shipped a schema but no client; this is the first real DB wiring.
- * Lazily created so importing the schema (e.g. in tooling/tests) never opens a
- * connection by side effect.
- */
-let _pool: Pool | undefined;
-let _db: ReturnType<typeof drizzle<typeof schema>> | undefined;
+export type Database = NodePgDatabase<typeof schema>;
+
+let pool: Pool | null = null;
+let db: Database | null = null;
+
+export function getDb(): Database {
+  if (db) return db;
+
+  if (!env.DATABASE_URL) {
+    throw new Error(
+      env.NODE_ENV === "test"
+        ? "Test database client has not been configured"
+        : "DATABASE_URL is required to query markets",
+    );
+  }
+
+  pool = new Pool({ connectionString: env.DATABASE_URL });
+  db = drizzle(pool, { schema });
+  return db;
+}
 
 export function getPool(): Pool {
-  if (!_pool) {
-    _pool = new Pool({ connectionString: env.DATABASE_URL });
+  if (!pool) getDb();
+  if (!pool) {
+    throw new Error("Database pool is not available");
   }
-  return _pool;
+
+  return pool;
 }
 
-export function getDb() {
-  if (!_db) {
-    _db = drizzle(getPool(), { schema });
+export function setDbForTests(testDb: Database | null): void {
+  if (env.NODE_ENV !== "test") {
+    throw new Error("setDbForTests can only be used in test");
   }
-  return _db;
-}
 
-export type Db = ReturnType<typeof getDb>;
+  db = testDb;
+  pool = null;
+}
