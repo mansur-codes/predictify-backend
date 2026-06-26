@@ -15,6 +15,7 @@ const schema = z.object({
   PREDICTIFY_CONTRACT_ID: z.string().min(1),
   INDEXER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
   INDEXER_START_LEDGER: z.coerce.number().int().nonnegative().default(0),
+  READINESS_MAX_LAG_LEDGERS: z.coerce.number().int().positive().default(200),
 });
 
 export const env = schema.parse(process.env);
