@@ -1,36 +1,42 @@
-import type { NextFunction, Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env";
 
-export interface JwtPayload {
-  sub: string;
-  stellarAddress: string;
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    stellarAddress: string;
+  };
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
-  }
-}
-
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) {
-    return res.status(401).json({ error: { code: "unauthorized", message: "Missing or malformed Authorization header" } });
-  }
-
-  const token = header.slice(7);
+export function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   try {
-    const payload = jwt.verify(token, env.JWT_SECRET, {
-      issuer: env.JWT_ISSUER,
-      audience: env.JWT_AUDIENCE,
-    }) as JwtPayload;
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ error: { code: "unauthorized" } });
+      return;
+    }
 
-    req.user = payload;
-    return next();
-  } catch {
-    return res.status(401).json({ error: { code: "unauthorized", message: "Invalid or expired token" } });
+    const token = authHeader.split(" ")[1];
+    const payload = jwt.verify(token, env.JWT_SECRET, {
+      audience: env.JWT_AUDIENCE,
+      issuer: env.JWT_ISSUER,
+    }) as { sub: string };
+
+    const stellarAddress = payload.sub;
+    if (!stellarAddress) {
+      res.status(401).json({ error: { code: "unauthorized" } });
+      return;
+    }
+
+    if (!env.ADMIN_ALLOWLIST.includes(stellarAddress)) {
+      res.status(403).json({ error: { code: "forbidden" } });
+      return;
+    }
+
+    req.user = { stellarAddress };
+    next();
+  } catch (err) {
+    res.status(401).json({ error: { code: "unauthorized" } });
   }
 }
+
