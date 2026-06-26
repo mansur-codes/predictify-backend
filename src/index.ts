@@ -6,6 +6,7 @@ import { logger } from "./config/logger";
 import { healthRouter } from "./routes/health";
 import { marketsRouter } from "./routes/markets";
 import { errorHandler } from "./middleware/errorHandler";
+import { connectWithRetry, closeDb } from "./db/client";
 
 export function createApp(): express.Express {
   const app = express();
@@ -22,7 +23,27 @@ export function createApp(): express.Express {
 
 if (require.main === module) {
   const app = createApp();
-  app.listen(env.PORT, () => {
-    logger.info({ port: env.PORT, env: env.NODE_ENV }, "predictify-backend listening");
+
+  connectWithRetry()
+    .then(() => {
+      app.listen(env.PORT, () => {
+        logger.info({ port: env.PORT, env: env.NODE_ENV }, "predictify-backend listening");
+      });
+    })
+    .catch((err) => {
+      logger.fatal({ err }, "Failed to start server");
+      process.exit(1);
+    });
+
+  process.on("SIGTERM", async () => {
+    logger.info("SIGTERM received, shutting down");
+    const forceExit = setTimeout(() => {
+      logger.warn("Forced exit after shutdown timeout");
+      process.exit(1);
+    }, 5000).unref();
+
+    await closeDb();
+    clearTimeout(forceExit);
+    process.exit(0);
   });
 }
