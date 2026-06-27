@@ -1,80 +1,86 @@
-import { db } from "../db";
-import { users, predictions, markets } from "../db/schema";
-import { and, eq, desc, lt } from "drizzle-orm";
+/**
+ * userService.ts
+ *
+ * Data-access layer for public user profile information.
+ *
+ * All functions return plain objects so that the route layer can serialise
+ * them directly.  The real implementations will query Drizzle/PostgreSQL;
+ * stubs are provided here so the rest of the application compiles and the
+ * test suite can inject mocks without touching a live database.
+ */
 
-export interface UserPrediction {
+// ── Types ─────────────────────────────────────────────────────────────────
+
+/** One entry in the public prediction history. */
+export interface PredictionEntry {
+  /** UUID of the prediction row. */
   id: string;
-  marketId: string;
-  question: string;
-  outcome: string;
-  amount: string;
-  status: "pending" | "confirmed" | "won" | "lost" | "claimed";
-  createdAt: string;
-  resolutionTime: string;
-}
-
-export async function getUserByAddress(address: string) {
-  return db.query.users.findFirst({
-    where: eq(users.stellarAddress, address),
-  });
-}
-
-export async function getUserPredictions(
-  userId: string,
-  opts: {
-    status?: string;
-    limit: number;
-    cursor?: string;
-  }
-) {
-  const { status, limit, cursor } = opts;
-
-  let whereConditions = [eq(predictions.userId, userId)];
-
-  // Apply status filter if provided
-  if (status) {
-    whereConditions.push(eq(predictions.status, status));
-  }
-
-  // Apply cursor for pagination (keysett pagination on created_at DESC, id)
-  if (cursor) {
-    const [cursorTime] = cursor.split("|");
-    whereConditions.push(lt(predictions.createdAt, new Date(cursorTime)));
-  }
-
-  const results = await db
-    .select({
-      id: predictions.id,
-      marketId: predictions.marketId,
-      question: markets.question,
-      outcome: predictions.outcome,
-      amount: predictions.amount,
-      status: predictions.status,
-      createdAt: predictions.createdAt,
-      resolutionTime: markets.resolutionTime,
-    })
-    .from(predictions)
-    .innerJoin(markets, eq(predictions.marketId, markets.id))
-    .where(and(...whereConditions))
-    .orderBy(desc(predictions.createdAt), desc(predictions.id))
-    .limit(limit + 1); // +1 to detect if there are more results
-
-  const hasMore = results.length > limit;
-  const data = results.slice(0, limit);
-
-  // Generate next cursor from last result
-  let nextCursor = null;
-  if (hasMore && data.length > 0) {
-    const last = data[data.length - 1];
-    nextCursor = `${last.createdAt.toISOString()}|${last.id}`;
-  }
-
-  return {
-    data: data.map((r) => ({
-      ...r,
-      createdAt: r.createdAt.toISOString(),
-      resolutionTime: r.resolutionTime.toISOString(),
-    })),
-    nextCursor,
+  /** The market this prediction was placed on. */
+  market: {
+    id: string;
+    question: string;
+    status: string;
+    resolutionTime: string;
   };
+  /** Which outcome the user chose (e.g. "yes" / "no"). */
+  outcome: string;
+  /**
+   * Amount staked, stored as a string to preserve precision for large
+   * Stellar stroops values.
+   */
+  amount: string;
+  /** ISO-8601 timestamp when the prediction was created. */
+  createdAt: string;
+}
+
+/** Aggregate totals derived from the user's full prediction history. */
+export interface ProfileTotals {
+  /** Total number of predictions the user has placed. */
+  totalPredictions: number;
+  /**
+   * Sum of all staked amounts as a string.
+   * Computed by the service; callers should treat this as opaque.
+   */
+  totalAmountStaked: string;
+  /** Number of predictions on markets that resolved in the user's favour. */
+  wins: number;
+  /** Number of predictions on markets that resolved against the user. */
+  losses: number;
+}
+
+/** Full public profile payload returned by the route. */
+export interface UserProfile {
+  /** Internal UUID (opaque to external consumers). */
+  id: string;
+  /** The user's public Stellar address — also the primary lookup key. */
+  stellarAddress: string;
+  /** ISO-8601 timestamp of account creation. */
+  joinedAt: string;
+  /** Ordered newest-first list of predictions. */
+  predictions: PredictionEntry[];
+  /** Pre-computed aggregate statistics. */
+  totals: ProfileTotals;
+}
+
+// ── Service functions ─────────────────────────────────────────────────────
+
+/**
+ * Look up a public user profile by Stellar address.
+ *
+ * Returns `null` when no user with that address exists.
+ *
+ * Production implementation should:
+ *  1. SELECT the user row by `stellar_address`.
+ *  2. JOIN predictions → markets, ordered by `predictions.created_at DESC`.
+ *  3. Compute totals in SQL (COUNT, SUM) to avoid pulling every row into JS.
+ *
+ * @param stellarAddress - The Stellar account address to look up.
+ */
+export async function getUserProfile(
+  stellarAddress: string,
+): Promise<UserProfile | null> {
+  // Stub: always returns null until the DB layer is wired up.
+  // Replace with a Drizzle query against the real connection pool.
+  void stellarAddress;
+  return null;
 }

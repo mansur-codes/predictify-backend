@@ -9,14 +9,6 @@ import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
 import { marketsRouter } from "./routes/markets";
 import { usersRouter } from "./routes/users";
-import { predictionsRouter } from "./routes/predictions";
-import { leaderboardRouter } from "./routes/leaderboard";
-import { disputesRouter } from "./routes/disputes";
-import { marketEventsRouter } from "./routes/marketEvents";
-import { adminUsersRouter } from "./routes/adminUsers";
-import { reconciliationRouter } from "./routes/reconciliation";
-import { createDocsRouter } from "./routes/docs";
-import { getOpenApiSpec } from "./openapi/builder";
 import { errorHandler } from "./middleware/errorHandler";
 import { connectWithRetry, closeDb } from "./db/client";
 import { stopScheduler } from "./services/scheduler";
@@ -57,14 +49,7 @@ export function createApp(): express.Express {
 
   app.use("/api/auth", authRouter);
   app.use("/api/markets", marketsRouter);
-  // Disputes are nested under markets: POST /api/markets/:id/disputes
-  app.use("/api/markets/:id", disputesRouter);
-  app.use("/api/markets", marketEventsRouter);
   app.use("/api/users", usersRouter);
-  app.use("/api/predictions", predictionsRouter);
-  app.use("/api/leaderboard", leaderboardRouter);
-  app.use("/api/admin/users", adminUsersRouter);
-  app.use("/api/reconciliation", reconciliationRouter);
 
   app.use(errorHandler);
   return app;
