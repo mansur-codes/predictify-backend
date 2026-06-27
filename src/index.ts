@@ -8,6 +8,7 @@ import { healthRouter } from "./routes/health";
 import { marketsRouter } from "./routes/markets";
 import { usersRouter } from "./routes/users";
 import { errorHandler } from "./middleware/errorHandler";
+import { fingerprintMiddleware } from "./middleware/fingerprint";
 import { requestContextStorage } from "./lib/requestContext";
 import { REQUEST_ID_HEADER } from "./lib/http";
 
@@ -43,8 +44,8 @@ export function createApp(): express.Express {
   // genReqId  - Honour an inbound X-Request-Id (sanitised); generate a UUID v4
   //             when absent or when the inbound value is empty after sanitising.
   //
-  // customProps - Lift req.id to the top level of every log line as `reqId` so
-  //               it can be queried without drilling into the nested req object.
+  // customProps - Lift req.id and the fingerprint to the top level of every log
+  //               line so they can be searched without drilling into nested objs.
   app.use(
     pinoHttp({
       logger,
@@ -53,8 +54,14 @@ export function createApp(): express.Express {
         const raw = Array.isArray(inbound) ? inbound[0] : inbound;
         return (raw && sanitizeRequestId(raw)) ?? uuidv4();
       },
-      customProps(req) {
-        return { reqId: req.id };
+      customProps(req, res) {
+        return {
+          reqId: req.id,
+          // fingerprint is set by fingerprintMiddleware which runs after this,
+          // so it will be present on the response-completion log line (pino-http
+          // reads customProps at log time, not at middleware registration time).
+          fingerprint: (res as express.Response).locals["fingerprint"],
+        };
       },
     }),
   );
@@ -77,7 +84,26 @@ export function createApp(): express.Express {
     res.setHeader(REQUEST_ID_HEADER, requestId);
 
     // Make available to all downstream code via AsyncLocalStorage.
+    // fingerprint is added to the store by fingerprintMiddleware below.
     requestContextStorage.run({ requestId }, next);
+  });
+
+  // ── Fingerprint middleware ────────────────────────────────────────────────
+  //
+  // Runs inside the ALS context (getRequestId() is available) and after
+  // express.json() (req.body is parsed).  Sets res.locals.fingerprint and
+  // the X-Request-Fingerprint response header, then updates the ALS store.
+  app.use(fingerprintMiddleware);
+
+  // Propagate the computed fingerprint into the ALS store so that workers
+  // and background code spawned after this point can read it via
+  // getFingerprint() without needing it passed as a function argument.
+  app.use((_req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const store = requestContextStorage.getStore();
+    if (store) {
+      store.fingerprint = res.locals["fingerprint"] as string | undefined;
+    }
+    next();
   });
 
   app.use("/health", healthRouter);
