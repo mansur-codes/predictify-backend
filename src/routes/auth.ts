@@ -1,14 +1,27 @@
 import { Router } from "express";
-import { rotateRefreshToken, revokeFamily } from "../services/refreshTokenService";
+import { z } from "zod";
+import {
+  RefreshTokenError,
+  rotateRefreshToken,
+  revokeFamily,
+} from "../services/refreshTokenService";
 import { logger } from "../config/logger";
 
 export const authRouter = Router();
+const refreshTokenBodySchema = z.object({
+  refreshToken: z.string().min(1),
+});
+
+function parseRefreshToken(body: unknown): string | null {
+  const result = refreshTokenBodySchema.safeParse(body);
+  return result.success ? result.data.refreshToken : null;
+}
 
 authRouter.post("/refresh", async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = parseRefreshToken(req.body);
 
-    if (!refreshToken || typeof refreshToken !== "string") {
+    if (!refreshToken) {
       res.status(400).json({
         error: { code: "invalid_request", message: "refreshToken is required and must be a string" },
       });
@@ -17,17 +30,17 @@ authRouter.post("/refresh", async (req, res, next) => {
 
     const tokens = await rotateRefreshToken(refreshToken);
     res.json(tokens);
-  } catch (err: any) {
-    logger.warn({ err: err.message }, "token_refresh_failed");
+  } catch (err) {
+    if (err instanceof RefreshTokenError) {
+      logger.warn({ code: err.code }, "token_refresh_failed");
 
-    if (err.message === "Refresh token reuse detected") {
-      res.status(403).json({
-        error: { code: "token_reuse_detected" },
-      });
-      return;
-    }
+      if (err.code === "reuseDetected") {
+        res.status(403).json({
+          error: { code: "token_reuse_detected" },
+        });
+        return;
+      }
 
-    if (err.message === "Refresh token expired" || err.message === "Invalid refresh token") {
       res.status(401).json({
         error: { code: "invalid_token" },
       });
@@ -40,9 +53,9 @@ authRouter.post("/refresh", async (req, res, next) => {
 
 authRouter.post("/logout", async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = parseRefreshToken(req.body);
 
-    if (!refreshToken || typeof refreshToken !== "string") {
+    if (!refreshToken) {
       res.status(400).json({
         error: { code: "invalid_request", message: "refreshToken is required and must be a string" },
       });
