@@ -10,12 +10,10 @@ import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
 import { marketsRouter } from "./routes/markets";
 import { usersRouter } from "./routes/users";
-import { authRouter } from "./routes/auth";
 import { leaderboardRouter } from "./routes/leaderboard";
 import { createDocsRouter } from "./routes/docs";
-import { metricsMiddleware } from "./metrics/httpMetrics";
-import { idempotency } from "./middleware/idempotency";
 import { errorHandler } from "./middleware/errorHandler";
+import { captchaGate } from "./middleware/captcha";
 import { requestContextStorage } from "./lib/requestContext";
 import { REQUEST_ID_HEADER } from "./lib/http";
 import { register } from "./metrics/registry";
@@ -80,8 +78,8 @@ export function createApp(): express.Express {
 
 
   app.use("/api/auth", authRouter);
-  app.use("/api/markets", marketsRouter);
-  app.use("/api/leaderboard", leaderboardRouter);
+  app.use("/api/markets", captchaGate, marketsRouter);
+  app.use("/api/leaderboard", captchaGate, leaderboardRouter);
   app.use("/api/users", usersRouter);
 
   app.get("/metrics", async (req, res) => {
@@ -105,7 +103,7 @@ if (require.main === module) {
     .then(() => {
       app.listen(env.PORT, () => {
         logger.info({ port: env.PORT, env: env.NODE_ENV }, "predictify-backend listening");
-        if (docsEnabled) {
+        if (env.NODE_ENV !== "production") {
           logger.info(`Swagger UI available at http://localhost:${env.PORT}/docs`);
         }
       });
