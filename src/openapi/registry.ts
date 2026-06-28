@@ -6,7 +6,10 @@
  */
 
 import { z } from "zod";
-import { extendZodWithOpenApi, OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
+import {
+  extendZodWithOpenApi,
+  OpenAPIRegistry,
+} from "@asteasolutions/zod-to-openapi";
 
 extendZodWithOpenApi(z);
 
@@ -22,7 +25,9 @@ const ErrorBody = registry.register(
 const ValidationErrorBody = registry.register(
   "ValidationErrorBody",
   z
-    .object({ error: z.object({ code: z.string(), details: z.any().optional() }) })
+    .object({
+      error: z.object({ code: z.string(), details: z.any().optional() }),
+    })
     .openapi("ValidationErrorBody"),
 );
 
@@ -44,14 +49,18 @@ registry.registerPath({
   responses: {
     200: {
       description: "Service is healthy",
-      content: { "application/json": { schema: z.object({ status: z.literal("ok") }) } },
+      content: {
+        "application/json": { schema: z.object({ status: z.literal("ok") }) },
+      },
     },
   },
 });
 
 // ── /api/auth ────────────────────────────────────────────────────────────────
 
-const ChallengeRequest = z.object({ stellarAddress: z.string() }).openapi("ChallengeRequest");
+const ChallengeRequest = z
+  .object({ stellarAddress: z.string() })
+  .openapi("ChallengeRequest");
 const ChallengeResponse = z
   .object({ nonce: z.string(), expiresAt: z.string().datetime() })
   .openapi("ChallengeResponse");
@@ -61,15 +70,27 @@ registry.registerPath({
   path: "/api/auth/challenge",
   tags: ["Auth"],
   summary: "Request a sign-in challenge nonce",
-  request: { body: { content: { "application/json": { schema: ChallengeRequest } } } },
+  request: {
+    body: { content: { "application/json": { schema: ChallengeRequest } } },
+  },
   responses: {
-    201: { description: "Challenge issued", content: { "application/json": { schema: ChallengeResponse } } },
-    400: { description: "Validation error", content: { "application/json": { schema: ValidationErrorBody } } },
+    201: {
+      description: "Challenge issued",
+      content: { "application/json": { schema: ChallengeResponse } },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: ValidationErrorBody } },
+    },
   },
 });
 
 const VerifyRequest = z
-  .object({ stellarAddress: z.string(), nonce: z.string(), signature: z.string() })
+  .object({
+    stellarAddress: z.string(),
+    nonce: z.string(),
+    signature: z.string(),
+  })
   .openapi("VerifyRequest");
 const TokenPair = z
   .object({ accessToken: z.string(), refreshToken: z.string() })
@@ -80,27 +101,54 @@ registry.registerPath({
   path: "/api/auth/verify",
   tags: ["Auth"],
   summary: "Verify challenge signature and obtain JWT",
-  request: { body: { content: { "application/json": { schema: VerifyRequest } } } },
+  request: {
+    body: { content: { "application/json": { schema: VerifyRequest } } },
+  },
   responses: {
-    200: { description: "Tokens issued", content: { "application/json": { schema: TokenPair } } },
-    400: { description: "Validation error", content: { "application/json": { schema: ValidationErrorBody } } },
-    401: { description: "Invalid signature", content: { "application/json": { schema: ErrorBody } } },
+    200: {
+      description: "Tokens issued",
+      content: { "application/json": { schema: TokenPair } },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: ValidationErrorBody } },
+    },
+    401: {
+      description: "Invalid signature",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
-const RefreshRequest = z.object({ refreshToken: z.string().min(1) }).openapi("RefreshRequest");
+const RefreshRequest = z
+  .object({ refreshToken: z.string().min(1) })
+  .openapi("RefreshRequest");
 
 registry.registerPath({
   method: "post",
   path: "/api/auth/refresh",
   tags: ["Auth"],
   summary: "Rotate a refresh token",
-  request: { body: { content: { "application/json": { schema: RefreshRequest } } } },
+  request: {
+    body: { content: { "application/json": { schema: RefreshRequest } } },
+  },
   responses: {
-    200: { description: "New token pair", content: { "application/json": { schema: TokenPair } } },
-    400: { description: "Missing token", content: { "application/json": { schema: ErrorBody } } },
-    401: { description: "Invalid token", content: { "application/json": { schema: ErrorBody } } },
-    403: { description: "Reuse detected — family revoked", content: { "application/json": { schema: ErrorBody } } },
+    200: {
+      description: "New token pair",
+      content: { "application/json": { schema: TokenPair } },
+    },
+    400: {
+      description: "Missing token",
+      content: { "application/json": { schema: ErrorBody } },
+    },
+    401: {
+      description: "Invalid token",
+      content: { "application/json": { schema: ErrorBody } },
+    },
+    403: {
+      description: "Reuse detected — family revoked",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
@@ -109,10 +157,15 @@ registry.registerPath({
   path: "/api/auth/logout",
   tags: ["Auth"],
   summary: "Revoke the entire refresh-token family",
-  request: { body: { content: { "application/json": { schema: RefreshRequest } } } },
+  request: {
+    body: { content: { "application/json": { schema: RefreshRequest } } },
+  },
   responses: {
     204: { description: "Logged out" },
-    400: { description: "Missing token", content: { "application/json": { schema: ErrorBody } } },
+    400: {
+      description: "Missing token",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
@@ -137,7 +190,9 @@ registry.registerPath({
   responses: {
     200: {
       description: "Array of markets",
-      content: { "application/json": { schema: z.object({ data: z.array(Market) }) } },
+      content: {
+        "application/json": { schema: z.object({ data: z.array(Market) }) },
+      },
     },
   },
 });
@@ -149,8 +204,14 @@ registry.registerPath({
   summary: "Get a market by ID",
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
-    200: { description: "Market", content: { "application/json": { schema: z.object({ data: Market }) } } },
-    404: { description: "Not found", content: { "application/json": { schema: ErrorBody } } },
+    200: {
+      description: "Market",
+      content: { "application/json": { schema: z.object({ data: Market }) } },
+    },
+    404: {
+      description: "Not found",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
@@ -173,21 +234,41 @@ registry.registerPath({
     body: { content: { "application/json": { schema: PatchMarketRequest } } },
   },
   responses: {
-    200: { description: "Updated market", content: { "application/json": { schema: z.object({ data: Market }) } } },
-    400: { description: "Validation error", content: { "application/json": { schema: ValidationErrorBody } } },
-    404: { description: "Not found", content: { "application/json": { schema: ErrorBody } } },
-    409: { description: "Version conflict", content: { "application/json": { schema: ErrorBody } } },
+    200: {
+      description: "Updated market",
+      content: { "application/json": { schema: z.object({ data: Market }) } },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: ValidationErrorBody } },
+    },
+    404: {
+      description: "Not found",
+      content: { "application/json": { schema: ErrorBody } },
+    },
+    409: {
+      description: "Version conflict",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
 // ── /api/markets/{id}/disputes ───────────────────────────────────────────────
 
 const OpenDisputeRequest = z
-  .object({ reason: z.string().min(10).max(500), evidenceUri: z.string().url().nullable().optional() })
+  .object({
+    reason: z.string().min(10).max(500),
+    evidenceUri: z.string().url().nullable().optional(),
+  })
   .openapi("OpenDisputeRequest");
 
 const Dispute = z
-  .object({ id: z.string().uuid(), marketId: z.string(), reason: z.string(), status: z.string() })
+  .object({
+    id: z.string().uuid(),
+    marketId: z.string(),
+    reason: z.string(),
+    status: z.string(),
+  })
   .openapi("Dispute");
 
 registry.registerPath({
@@ -201,9 +282,18 @@ registry.registerPath({
     body: { content: { "application/json": { schema: OpenDisputeRequest } } },
   },
   responses: {
-    201: { description: "Dispute created", content: { "application/json": { schema: z.object({ data: Dispute }) } } },
-    400: { description: "Validation error", content: { "application/json": { schema: ValidationErrorBody } } },
-    401: { description: "Unauthorized", content: { "application/json": { schema: ErrorBody } } },
+    201: {
+      description: "Dispute created",
+      content: { "application/json": { schema: z.object({ data: Dispute }) } },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: ValidationErrorBody } },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
@@ -216,17 +306,107 @@ registry.registerPath({
   summary: "SSE stream of market events",
   request: { params: z.object({ id: z.string().uuid() }) },
   responses: {
-    200: { description: "Server-Sent Events stream", content: { "text/event-stream": { schema: z.string() } } },
-    400: { description: "Bad request", content: { "application/json": { schema: ErrorBody } } },
+    200: {
+      description: "Server-Sent Events stream",
+      content: { "text/event-stream": { schema: z.string() } },
+    },
+    400: {
+      description: "Bad request",
+      content: { "application/json": { schema: ErrorBody } },
+    },
+  },
+});
+
+// ── /api/notifications ──────────────────────────────────────────────────────
+
+const NotificationChannel = z
+  .enum(["email", "webhook"])
+  .openapi("NotificationChannel");
+const NotificationCategory = z
+  .enum(["market_resolved", "claim_ready", "dispute_opened"])
+  .openapi("NotificationCategory");
+const NotificationPreference = z
+  .object({
+    category: NotificationCategory,
+    channel: NotificationChannel,
+    enabled: z.boolean(),
+  })
+  .openapi("NotificationPreference");
+const NotificationPreferencesResponse = z
+  .object({ data: z.object({ preferences: z.array(NotificationPreference) }) })
+  .openapi("NotificationPreferencesResponse");
+const PatchNotificationPreferencesRequest = z
+  .object({ preferences: z.array(NotificationPreference).min(1) })
+  .openapi("PatchNotificationPreferencesRequest");
+
+registry.registerPath({
+  method: "get",
+  path: "/api/notifications/preferences",
+  tags: ["Notifications"],
+  summary: "Get the authenticated user's notification preferences",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "Notification preferences",
+      content: {
+        "application/json": { schema: NotificationPreferencesResponse },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorBody } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/notifications/preferences",
+  tags: ["Notifications"],
+  summary: "Update notification preferences for the authenticated user",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: PatchNotificationPreferencesRequest },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated notification preferences",
+      content: {
+        "application/json": { schema: NotificationPreferencesResponse },
+      },
+    },
+    400: {
+      description: "Validation error",
+      content: { "application/json": { schema: ValidationErrorBody } },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
 // ── /api/users ───────────────────────────────────────────────────────────────
 
-const PredictionStatus = z.enum(["pending", "confirmed", "won", "lost", "claimed"]);
+const PredictionStatus = z.enum([
+  "pending",
+  "confirmed",
+  "won",
+  "lost",
+  "claimed",
+]);
 
 const Prediction = z
-  .object({ id: z.string().uuid(), marketId: z.string(), status: PredictionStatus, createdAt: z.string().datetime() })
+  .object({
+    id: z.string().uuid(),
+    marketId: z.string(),
+    status: PredictionStatus,
+    createdAt: z.string().datetime(),
+  })
   .openapi("Prediction");
 
 registry.registerPath({
@@ -247,12 +427,21 @@ registry.registerPath({
       description: "Paginated predictions",
       content: {
         "application/json": {
-          schema: z.object({ data: z.array(Prediction), nextCursor: z.string().nullable() }),
+          schema: z.object({
+            data: z.array(Prediction),
+            nextCursor: z.string().nullable(),
+          }),
         },
       },
     },
-    400: { description: "Invalid address", content: { "application/json": { schema: ErrorBody } } },
-    404: { description: "User not found", content: { "application/json": { schema: ErrorBody } } },
+    400: {
+      description: "Invalid address",
+      content: { "application/json": { schema: ErrorBody } },
+    },
+    404: {
+      description: "User not found",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
@@ -268,17 +457,26 @@ registry.registerPath({
     200: {
       description: "Predictions list",
       content: {
-        "application/json": { schema: z.object({ data: z.array(Prediction), user: z.any() }) },
+        "application/json": {
+          schema: z.object({ data: z.array(Prediction), user: z.any() }),
+        },
       },
     },
-    401: { description: "Unauthorized", content: { "application/json": { schema: ErrorBody } } },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
 // ── /api/leaderboard ─────────────────────────────────────────────────────────
 
 const LeaderboardEntry = z
-  .object({ rank: z.number().int(), stellarAddress: z.string(), score: z.number() })
+  .object({
+    rank: z.number().int(),
+    stellarAddress: z.string(),
+    score: z.number(),
+  })
   .openapi("LeaderboardEntry");
 
 registry.registerPath({
@@ -300,7 +498,12 @@ registry.registerPath({
         "application/json": {
           schema: z.object({
             data: z.array(LeaderboardEntry),
-            meta: z.object({ limit: z.number(), offset: z.number(), count: z.number(), refresh: z.boolean() }),
+            meta: z.object({
+              limit: z.number(),
+              offset: z.number(),
+              count: z.number(),
+              refresh: z.boolean(),
+            }),
           }),
         },
       },
@@ -315,15 +518,27 @@ registry.registerPath({
   summary: "Get leaderboard entry for a specific user",
   request: { params: z.object({ stellarAddress: z.string() }) },
   responses: {
-    200: { description: "Entry", content: { "application/json": { schema: z.object({ data: LeaderboardEntry }) } } },
-    404: { description: "Not found", content: { "application/json": { schema: ErrorBody } } },
+    200: {
+      description: "Entry",
+      content: {
+        "application/json": { schema: z.object({ data: LeaderboardEntry }) },
+      },
+    },
+    404: {
+      description: "Not found",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
 
 // ── /api/admin/users ─────────────────────────────────────────────────────────
 
 const AdminUserView = z
-  .object({ address: z.string(), predictions: z.array(Prediction), disputes: z.array(Dispute) })
+  .object({
+    address: z.string(),
+    predictions: z.array(Prediction),
+    disputes: z.array(Dispute),
+  })
   .openapi("AdminUserView");
 
 registry.registerPath({
@@ -334,9 +549,23 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   request: { params: z.object({ address: z.string() }) },
   responses: {
-    200: { description: "User view", content: { "application/json": { schema: z.object({ data: AdminUserView }) } } },
-    401: { description: "Unauthorized", content: { "application/json": { schema: ErrorBody } } },
-    403: { description: "Forbidden", content: { "application/json": { schema: ErrorBody } } },
-    429: { description: "Rate limit exceeded", content: { "application/json": { schema: ErrorBody } } },
+    200: {
+      description: "User view",
+      content: {
+        "application/json": { schema: z.object({ data: AdminUserView }) },
+      },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorBody } },
+    },
+    403: {
+      description: "Forbidden",
+      content: { "application/json": { schema: ErrorBody } },
+    },
+    429: {
+      description: "Rate limit exceeded",
+      content: { "application/json": { schema: ErrorBody } },
+    },
   },
 });
