@@ -6,24 +6,21 @@ import { env } from "./config/env";
 import { logger } from "./config/logger";
 import { metricsMiddleware } from "./metrics/httpMetrics";
 import { idempotency } from "./middleware/idempotency";
-import { errorHandler } from "./middleware/errorHandler";
-import { requestContextStorage } from "./lib/requestContext";
-import { REQUEST_ID_HEADER } from "./lib/http";
-import { register } from "./metrics/registry";
-import { connectWithRetry, closeDb } from "./db/client";
-import { stopScheduler } from "./services/scheduler";
 import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
 import { marketsRouter } from "./routes/markets";
 import { usersRouter } from "./routes/users";
 import { leaderboardRouter } from "./routes/leaderboard";
 import { createDocsRouter } from "./routes/docs";
-import { adminUsersRouter } from "./routes/adminUsers";
-import { adminReconciliationRouter } from "./routes/admin/reconciliation";
-import {
-  createDocsCspMiddleware,
-  createGlobalCspMiddleware,
-} from "./middleware/csp";
+import { errorHandler } from "./middleware/errorHandler";
+import { requestContextStorage } from "./lib/requestContext";
+import { REQUEST_ID_HEADER } from "./lib/http";
+import { register } from "./metrics/registry";
+import { connectWithRetry, closeDb } from "./db/client";
+import { stopScheduler } from "./services/scheduler";
+import { adminAuditRouter } from "./routes/admin/audit";
+
+const docsEnabled = env.NODE_ENV !== "production" || process.env.ENABLE_DOCS === "true";
 
 const REQUEST_ID_MAX_LENGTH = 64;
 
@@ -85,8 +82,7 @@ export function createApp(): express.Express {
   app.use("/api/markets", marketsRouter);
   app.use("/api/leaderboard", leaderboardRouter);
   app.use("/api/users", usersRouter);
-  app.use("/api/admin/users", adminUsersRouter);
-  app.use("/api/admin/recon", adminReconciliationRouter);
+  app.use("/api/admin/audit", adminAuditRouter);
 
   app.get("/metrics", async (req, res) => {
     const metricsAuthToken = process.env.METRICS_AUTH_TOKEN;

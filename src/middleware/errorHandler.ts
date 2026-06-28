@@ -1,11 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { ZodError } from "zod";
 import { logger } from "../config/logger";
-import { getRequestId } from "../lib/requestContext";
-
-function requestIdFrom(req: Request): string {
-  return getRequestId() ?? (typeof req.id === "string" ? req.id : "");
-}
 
 export function errorHandler(
   err: unknown,
